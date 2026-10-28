@@ -42,6 +42,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -293,12 +295,53 @@ class VisitRestControllerV1Tests {
 
     @Test
     @WithMockUser(roles="OWNER_ADMIN")
-    void testGetVisitWithNullDescriptionReturns400() throws Exception {
+    void testGetVisitWithNullDescriptionReturns500WithoutDetail() throws Exception {
         Visit invalid = visits.get(0);
         invalid.setDescription(null);
         given(this.clinicService.findVisitById(2)).willReturn(invalid);
-        assertBadRequestProblemDetail(this.mockMvc.perform(get("/api/visits/2")
-            .accept(MediaType.APPLICATION_JSON)));
+        this.mockMvc.perform(get("/api/visits/2")
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.status").value(500))
+            .andExpect(jsonPath("$.detail").value("An unexpected error occurred while processing your request"))
+            .andExpect(jsonPath("$.schemaValidationErrors").isEmpty())
+            .andExpect(content().string(not(containsString("description"))));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitMissingPetIdReturns400() throws Exception {
+        String json = "{\"date\":\"" + LocalDate.now() + "\",\"description\":\"rabies shot\"}";
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitNullPetIdReturns400() throws Exception {
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(visitJson("\"rabies shot\"", "null")).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitMalformedBodyDoesNotLeakParserDetails() throws Exception {
+        String json = "{\"description\":\"rabies shot\",\"petId\":";
+        this.mockMvc.perform(post("/api/visits")
+                .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].message").value("Malformed request body"))
+            .andExpect(content().string(not(containsString("end-of-input"))));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitMissingBodyDoesNotLeakControllerSignature() throws Exception {
+        this.mockMvc.perform(post("/api/visits")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.schemaValidationErrors[0].message").value("Malformed request body"))
+            .andExpect(content().string(not(containsString("VisitRestControllerV1"))));
     }
 
 }

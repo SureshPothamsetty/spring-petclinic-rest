@@ -216,6 +216,39 @@ class PetRestControllerV1Tests {
 
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdatePetMissingTypeReturns400() throws Exception {
+        String json = "{\"name\":\"Rosy\",\"birthDate\":\"" + LocalDate.now() + "\"}";
+        this.mockMvc.perform(put("/api/pets/3")
+                .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.schemaValidationErrors").isNotEmpty());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdatePetNullTypeReturns400() throws Exception {
+        String json = "{\"name\":\"Rosy\",\"birthDate\":\"" + LocalDate.now() + "\",\"type\":null}";
+        this.mockMvc.perform(put("/api/pets/3")
+                .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.schemaValidationErrors").isNotEmpty());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdatePetMissingBirthDateReturns400() throws Exception {
+        String json = "{\"name\":\"Rosy\",\"type\":{\"id\":2,\"name\":\"dog\"}}";
+        this.mockMvc.perform(put("/api/pets/3")
+                .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.schemaValidationErrors").isNotEmpty());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
     void testUpdatePetRejectedBirthDateReturns400() throws Exception {
         this.mockMvc.perform(put("/api/pets/3")
                 .content(petJson("Rosy", LocalDate.now().plusDays(1))).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))

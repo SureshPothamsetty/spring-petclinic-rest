@@ -53,6 +53,7 @@ public class ExceptionControllerAdvice {
     private static final String ERROR_UNEXPECTED = "An unexpected error occurred while processing your request";
     private static final String ERROR_DATA_INTEGRITY = "The requested resource could not be processed due to a data constraint violation";
     private static final String ERROR_INVALID_REQUEST = "The request contains invalid or missing parameters";
+    private static final String ERROR_MALFORMED_BODY = "Malformed request body";
 
     /**
      * Private method for constructing the {@link ProblemDetail} object passing the name and details of the exception
@@ -151,27 +152,45 @@ public class ExceptionControllerAdvice {
 
 
     /**
-     * Handles invalid request payloads that fail while the DTO record is being built: constraint violations raised
-     * by the compact constructors ({@link InvalidDtoException}) and unreadable bodies such as malformed JSON or
-     * unparseable dates ({@link HttpMessageNotReadableException}).
+     * Handles unreadable request bodies: constraint violations raised by the DTO record compact constructors while
+     * Jackson deserializes the body (an {@link InvalidDtoException} wrapped in the cause chain), as well as malformed
+     * JSON, unparseable dates and missing bodies.
+     * <p>
+     * Only the message of an {@link InvalidDtoException} (field names and lengths) is echoed to the client; any other
+     * cause is reported with a fixed message so parser internals and controller signatures never leak. An
+     * {@link InvalidDtoException} thrown outside request deserialization (for example while mapping stored data to a
+     * response DTO) is a server-side fault and is handled by {@link #handleGeneralException}.
      *
      * @param e The exception to be handled
      * @param request {@link HttpServletRequest} object referring to the current request.
      * @return A {@link ResponseEntity} containing the error information and a 400 Bad Request status.
      */
-    @ExceptionHandler({InvalidDtoException.class, HttpMessageNotReadableException.class})
+    @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseBody
-    public ResponseEntity<ProblemDetail> handleInvalidDto(Exception e, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleUnreadableRequest(HttpMessageNotReadableException e, HttpServletRequest request) {
         HttpStatus status = HttpStatus.BAD_REQUEST;
+        String message = ERROR_MALFORMED_BODY;
+        for (Throwable cause = e; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+            if (cause instanceof InvalidDtoException) {
+                message = Objects.toString(cause.getMessage(), ERROR_MALFORMED_BODY);
+                break;
+            }
+        }
+        logger.warn("Unreadable request payload at {} {} ({})",
+            request.getMethod(),
+            request.getRequestURI(),
+            rootCauseType(e));
+        ProblemDetail detail = this.detailBuild(e, status, request.getRequestURL(), ERROR_INVALID_REQUEST);
+        detail.setProperty("schemaValidationErrors", List.of(new ValidationMessageDto(message)));
+        return ResponseEntity.status(status).body(detail);
+    }
+
+    private static String rootCauseType(Throwable e) {
         Throwable root = e;
         while (root.getCause() != null && root.getCause() != root) {
             root = root.getCause();
         }
-        String message = Objects.toString(root.getMessage(), "Invalid request");
-        logger.warn("Invalid request payload at {} {}: {}", request.getMethod(), request.getRequestURI(), message);
-        ProblemDetail detail = this.detailBuild(e, status, request.getRequestURL(), ERROR_INVALID_REQUEST);
-        detail.setProperty("schemaValidationErrors", List.of(new ValidationMessageDto(message)));
-        return ResponseEntity.status(status).body(detail);
+        return root.getClass().getName();
     }
 
 }
