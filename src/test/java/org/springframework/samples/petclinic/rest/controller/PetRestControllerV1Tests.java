@@ -90,17 +90,8 @@ class PetRestControllerV1Tests {
         petType.id(2)
             .name("dog");
 
-        PetDto pet = new PetDto();
-        pets.add(pet.id(3)
-            .name("Rosy")
-            .birthDate(LocalDate.now())
-            .type(petType));
-
-        pet = new PetDto();
-        pets.add(pet.id(4)
-            .name("Jewel")
-            .birthDate(LocalDate.now())
-            .type(petType));
+        pets.add(new PetDto("Rosy", LocalDate.now(), petType, 3, null, List.of()));
+        pets.add(new PetDto("Jewel", LocalDate.now(), petType, 4, null, List.of()));
     }
 
     @Test
@@ -155,7 +146,7 @@ class PetRestControllerV1Tests {
     void testUpdatePetSuccess() throws Exception {
         given(this.clinicService.findPetById(3)).willReturn(petMapper.toPet(pets.get(0)));
         PetDto newPet = pets.get(0);
-        newPet.setName("Rosy I");
+        newPet = new PetDto("Rosy I", newPet.birthDate(), newPet.type(), newPet.id(), newPet.ownerId(), newPet.visits());
         ObjectMapper mapper =  JsonMapper.builder()
             .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
             .build();
@@ -178,12 +169,7 @@ class PetRestControllerV1Tests {
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
     void testUpdatePetError() throws Exception {
-        PetDto newPet = pets.get(0);
-        newPet.setName(null);
-        ObjectMapper mapper =  JsonMapper.builder()
-            .defaultDateFormat(new SimpleDateFormat("dd/MM/yyyy"))
-            .build();
-        String newPetAsJSON = mapper.writeValueAsString(newPet);
+        String newPetAsJSON = "{\"name\":null,\"birthDate\":\"" + LocalDate.now() + "\",\"type\":{\"id\":2,\"name\":\"dog\"}}";
 
         this.mockMvc.perform(put("/api/pets/3")
                 .content(newPetAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
