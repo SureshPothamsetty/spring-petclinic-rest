@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "branch": "mypetclinicFeature",
+  "head": "0020e7b8400a46cc91fe51a5df497959aa2db1d8",
+  "runner": "custom",
+  "started_at": "2026-10-28T09:33:52Z",
+  "completed_at": "2026-10-28T09:34:34Z",
+  "status": "PASSED",
+  "drift_detected": false,
+  "gates": [
+    {"id": "maven-verify", "source": "ci", "status": "PASS", "duration_ms": 42349, "command": "./mvnw -B verify", "exit_code": 0, "notes": "Covers compile, 277 tests (0 failures, 0 skipped), jacoco check. Run on local JDK 25; CI uses JDK 17. No guide file or Maven runner in the default table; command taken from .github/workflows/maven-build-pull-request.yml."},
+    {"id": "sonar", "source": "ci", "status": "N/A", "duration_ms": 0, "command": "./mvnw -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=spring-petclinic_spring-petclinic-rest -Dsonar.organization=spring-petclinic", "exit_code": null, "notes": "Master-branch push only; requires SONAR_TOKEN and network access to SonarCloud, unavailable locally. Only CI can settle it."},
+    {"id": "newman", "source": "ci", "status": "N/A", "duration_ms": 0, "command": "mvn spring-boot:run; bash postman-tests.sh", "exit_code": null, "notes": "Newman smoke test needs a running API and newman install; not run locally. Runs on PRs in CI (newman-pipeline.yml)."},
+    {"id": "docker-build", "source": "ci", "status": "N/A", "duration_ms": 0, "command": "mvn compile jib:build -X -DjibSerialize=true", "exit_code": null, "notes": "Pushes an image to a registry; deploy step, not runnable locally."}
+  ],
+  "failures": {}
+}

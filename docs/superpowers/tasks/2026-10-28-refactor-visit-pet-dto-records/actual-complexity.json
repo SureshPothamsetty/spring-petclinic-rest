@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "generated": "2026-10-28T00:00:00Z",
+  "dimensions": {
+    "component_scope":      { "score": 4, "label": "L" },
+    "requirements_clarity": { "score": 2, "label": "S" },
+    "technical_risk":       { "score": 4, "label": "L" },
+    "file_change_estimate": { "score": 5, "label": "XL" },
+    "dependencies":         { "score": 2, "label": "S" },
+    "affected_layers":      { "score": 3, "label": "M" }
+  },
+  "total": 20,
+  "size": "M",
+  "band_range": "15-20",
+  "files_changed": 13,
+  "routing": "brainstorming",
+  "key_reasoning": [
+    { "dimension": "component_scope", "reason": "Two hand-written DTO records (PetDto, VisitDto), a new InvalidDtoException, ExceptionControllerAdvice handling, PetRestControllerV1 and the openapi-generator schemaMappings config in pom.xml; shared exception advice touches all REST controllers." },
+    { "dimension": "technical_risk", "reason": "No exact precedent: compact-constructor validation that must surface as HTTP 400 when Jackson deserializes requests (wrapped in HttpMessageNotReadableException) but as 500 when thrown while mapping stored data to responses. Error-message echoing is limited to InvalidDtoException to avoid leaking parser internals. Constraints are duplicated between openapi.yml and record constants, needing a new drift test; enumerated edge/boundary cases needed new parameterized-style tests (PetDtoTests, VisitDtoTests)." },
+    { "dimension": "file_change_estimate", "reason": "13 files per diffstat (669 insertions, 95 deletions): 6 main files and 7 test files including 3 new test classes and a new exception class." }
+  ],
+  "red_flags_applied": [
+    "Technical Risk held at L: validation and error-handling semantics (400 vs 500) with no exact existing precedent and input-validation security surface",
+    "Technical Risk: enumerated edge/boundary cases with no pre-existing test template, so new defensive tests were required"
+  ],
+  "split_recommendation": null
+}
