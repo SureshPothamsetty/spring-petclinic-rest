@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.samples.petclinic.rest.validation.InvalidDtoException;
 import org.springframework.samples.petclinic.rest.validation.PetAgeValidation;
 
 import java.time.LocalDate;
@@ -21,7 +22,7 @@ import java.util.List;
 @JsonTypeName("Pet")
 public record PetDto(
 
-    @NotNull @Size(max = 30)
+    @NotNull @Size(max = PetDto.NAME_MAX_LENGTH)
     @Schema(name = "name", example = "Leo", description = "The name of the pet.", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonProperty("name")
     String name,
@@ -38,12 +39,12 @@ public record PetDto(
     @JsonProperty("type")
     PetTypeDto type,
 
-    @Min(value = 0)
+    @Min(value = PetDto.ID_MIN)
     @Schema(name = "id", accessMode = Schema.AccessMode.READ_ONLY, example = "1", description = "The ID of the pet.", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonProperty("id")
     Integer id,
 
-    @Min(value = 0)
+    @Min(value = PetDto.OWNER_ID_MIN)
     @Schema(name = "ownerId", accessMode = Schema.AccessMode.READ_ONLY, example = "1", description = "The ID of the pet's owner.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     @JsonProperty("ownerId")
     @Nullable Integer ownerId,
@@ -53,4 +54,24 @@ public record PetDto(
     @JsonProperty("visits")
     List<VisitDto> visits
 ) {
+
+    public static final int NAME_MAX_LENGTH = 30;
+    public static final int ID_MIN = 0;
+    public static final int OWNER_ID_MIN = 0;
+
+    public PetDto {
+        if (name == null) {
+            throw new InvalidDtoException("name must not be null");
+        }
+        if (name.length() > NAME_MAX_LENGTH) {
+            throw new InvalidDtoException("name length must be at most %d but was %d".formatted(NAME_MAX_LENGTH, name.length()));
+        }
+        if (id != null && id < ID_MIN) {
+            throw new InvalidDtoException("id must be at least %d but was %d".formatted(ID_MIN, id));
+        }
+        if (ownerId != null && ownerId < OWNER_ID_MIN) {
+            throw new InvalidDtoException("ownerId must be at least %d but was %d".formatted(OWNER_ID_MIN, ownerId));
+        }
+        visits = visits == null ? List.of() : List.copyOf(visits);
+    }
 }
