@@ -200,4 +200,27 @@ class PetRestControllerV1Tests {
             .andExpect(status().isNotFound());
     }
 
+    private String petJson(String name, LocalDate birthDate) {
+        return "{\"name\":\"" + name + "\",\"birthDate\":\"" + birthDate + "\",\"type\":{\"id\":2,\"name\":\"dog\"}}";
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdatePetNameTooLongReturns400() throws Exception {
+        this.mockMvc.perform(put("/api/pets/3")
+                .content(petJson("x".repeat(31), LocalDate.now())).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.schemaValidationErrors").isNotEmpty());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdatePetRejectedBirthDateReturns400() throws Exception {
+        this.mockMvc.perform(put("/api/pets/3")
+                .content(petJson("Rosy", LocalDate.now().plusDays(1))).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400));
+    }
+
 }

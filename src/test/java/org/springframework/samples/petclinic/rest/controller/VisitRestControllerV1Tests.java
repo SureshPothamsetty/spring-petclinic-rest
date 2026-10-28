@@ -235,4 +235,70 @@ class VisitRestControllerV1Tests {
         	.andExpect(status().isNotFound());
     }
 
+    private void assertBadRequestProblemDetail(org.springframework.test.web.servlet.ResultActions actions) throws Exception {
+        actions.andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.schemaValidationErrors").isNotEmpty());
+    }
+
+    private String visitJson(String descriptionJson, String petIdJson) {
+        return "{\"date\":\"" + LocalDate.now() + "\",\"description\":" + descriptionJson + ",\"petId\":" + petIdJson + "}";
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitDescriptionTooLongReturns400() throws Exception {
+        String json = visitJson("\"" + "x".repeat(256) + "\"", "8");
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitNullDescriptionReturns400WithProblemDetail() throws Exception {
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(visitJson("null", "8")).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitNegativePetIdReturns400() throws Exception {
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(visitJson("\"rabies shot\"", "-1")).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitWithoutIdReturns201() throws Exception {
+        this.mockMvc.perform(post("/api/visits")
+                .content(visitJson("\"rabies shot\"", "8")).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitMalformedDateReturns400() throws Exception {
+        String json = "{\"date\":\"not-a-date\",\"description\":\"rabies shot\",\"petId\":8}";
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitTruncatedJsonReturns400() throws Exception {
+        String json = "{\"description\":\"rabies shot\",\"petId\":";
+        assertBadRequestProblemDetail(this.mockMvc.perform(post("/api/visits")
+            .content(json).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE)));
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testGetVisitWithNullDescriptionReturns400() throws Exception {
+        Visit invalid = visits.get(0);
+        invalid.setDescription(null);
+        given(this.clinicService.findVisitById(2)).willReturn(invalid);
+        assertBadRequestProblemDetail(this.mockMvc.perform(get("/api/visits/2")
+            .accept(MediaType.APPLICATION_JSON)));
+    }
+
 }
